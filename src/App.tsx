@@ -1,127 +1,116 @@
+import { useState } from "react";
 import "./styles.css";
+import { useLoftStore } from "./lib/store";
+import { allLineages } from "./lib/loft";
+import { Select } from "./components/ui";
+import { Overview } from "./components/Overview";
+import { Records } from "./components/Records";
+import { Reminders } from "./components/Reminders";
+import { Ranking } from "./components/Ranking";
+import { Archive } from "./components/Archive";
+import { Pairing } from "./components/Pairing";
 
-const project = {
-  "sourceNo": 9,
-  "id": "hxyfront-62014",
-  "port": 62014,
-  "title": "赛鸽训放记录",
-  "domain": "赛鸽训放",
-  "prompt": "我想做一个面向赛鸽棚的训放记录前端工具，鸽主可以记录足环号、血统、训放地点、放飞距离、天气、归巢时间、飞行速度、健康状态和配对记录。页面需要有鸽棚总览、训放成绩排行、未归巢提醒、单羽赛鸽档案和按血统筛选的历史成绩。",
-  "palette": [
-    "#1d4ed8",
-    "#64748b",
-    "#f97316"
-  ],
-  "metrics": [
-    "归巢率",
-    "平均速度",
-    "未归巢",
-    "血统档案"
-  ],
-  "filters": [
-    "短距离",
-    "中距离",
-    "长距离",
-    "种鸽"
-  ],
-  "fields": [
-    "足环号",
-    "血统",
-    "训放地点",
-    "放飞距离",
-    "归巢时间",
-    "健康状态"
-  ],
-  "records": [
-    [
-      "CHN-24-001839",
-      "詹森系",
-      "80km，晴",
-      "均速1180m/min"
-    ],
-    [
-      "CHN-24-002114",
-      "凡龙系",
-      "120km，侧风",
-      "归巢延迟"
-    ],
-    [
-      "CHN-23-008771",
-      "种鸽",
-      "配对记录更新",
-      "健康正常"
-    ]
-  ]
-};
+const TABS = [
+  { key: "overview", label: "鸽棚总览" },
+  { key: "records", label: "训放记录" },
+  { key: "reminders", label: "未归巢提醒" },
+  { key: "ranking", label: "成绩排行" },
+  { key: "archive", label: "血统档案" },
+  { key: "pairing", label: "配对管理" },
+] as const;
 
 function App() {
+  const store = useLoftStore();
+  const { prefs, patchPrefs } = store;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const lineages = allLineages(store.state);
+
+  const tab = TABS.some((t) => t.key === prefs.tab) ? prefs.tab : "overview";
+
   return (
-    <main className="app">
-      <section className="hero">
-        <p>{project.id} · 源提示词{project.sourceNo} · Port {project.port}</p>
-        <h1>{project.title}</h1>
-        <span>{project.prompt}</span>
-      </section>
-
-      <section className="metrics">
-        {project.metrics.map((metric: string, index: number) => (
-          <article key={metric}>
-            <small>{metric}</small>
-            <strong>{[28, 6, 14, 91][index] ?? 10}</strong>
-          </article>
-        ))}
-      </section>
-
-      <section className="workspace">
-        <aside className="panel">
-          <h2>{project.domain}分类</h2>
-          <div className="chips">
-            {project.filters.map((item: string) => (
-              <button key={item}>{item}</button>
-            ))}
-          </div>
-        </aside>
-
-        <section className="panel form-panel">
-          <div className="heading">
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <span className="brand-mark">🕊️</span>
             <div>
-              <p>专业字段</p>
-              <h2>新增记录</h2>
+              <h1>离线赛鸽训放台</h1>
+              <small>数据保存在本机浏览器 · 断网可用 · 刷新不丢失</small>
             </div>
-            <button className="primary">保存记录</button>
           </div>
-          <div className="field-grid">
-            {project.fields.map((field: string) => (
-              <label key={field}>
-                <span>{field}</span>
-                <input placeholder={"填写" + field} />
-              </label>
-            ))}
+          <div className="topbar-tools">
+            <label className="global-filter">
+              <span>全局血统筛选</span>
+              <Select
+                value={prefs.lineage}
+                onChange={(e) => patchPrefs({ lineage: e.target.value })}
+                aria-label="全局血统筛选"
+              >
+                <option value="all">全部血统</option>
+                {lineages.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                if (confirm("恢复为内置演示数据？当前所有修改将被覆盖。")) store.resetDemo();
+              }}
+            >
+              演示数据
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                if (confirm("清空全部赛鸽、训放与配对数据？此操作不可撤销。")) store.clearAll();
+              }}
+            >
+              清空
+            </button>
           </div>
-        </section>
-      </section>
-
-      <section className="panel">
-        <div className="heading">
-          <div>
-            <p>近期记录</p>
-            <h2>工作台摘要</h2>
-          </div>
-          <button>导出CSV</button>
         </div>
-        <div className="records">
-          {project.records.map((record: string[], index: number) => (
-            <article key={record.join("-")}>
-              <b>{String(index + 1).padStart(2, "0")}</b>
-              <div>
-                <h3>{record[0]}</h3>
-                <p>{record.slice(1).join(" · ")}</p>
-              </div>
-            </article>
+        <nav className={`tabs ${menuOpen ? "tabs-open" : ""}`}>
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              className={tab === t.key ? "tab tab-on" : "tab"}
+              onClick={() => {
+                patchPrefs({ tab: t.key });
+                setMenuOpen(false);
+              }}
+            >
+              {t.label}
+            </button>
           ))}
-        </div>
-      </section>
-    </main>
+        </nav>
+        <button className="tabs-toggle" onClick={() => setMenuOpen((v) => !v)}>
+          {TABS.find((t) => t.key === tab)?.label} ▾
+        </button>
+      </header>
+
+      <main className="content">
+        {prefs.lineage !== "all" && (
+          <div className="filter-banner">
+            已按血统 <b>{prefs.lineage}</b> 筛选：总览、记录、提醒、排行、档案中的数据同步收窄；
+            <button onClick={() => patchPrefs({ lineage: "all" })}>清除筛选 ×</button>
+          </div>
+        )}
+        {tab === "overview" && <Overview store={store} />}
+        {tab === "records" && <Records store={store} />}
+        {tab === "reminders" && <Reminders store={store} />}
+        {tab === "ranking" && <Ranking store={store} />}
+        {tab === "archive" && <Archive store={store} />}
+        {tab === "pairing" && <Pairing store={store} />}
+      </main>
+
+      <footer className="footer">
+        同一数据源驱动总览 / 记录 / 提醒 / 排行 / 档案 · 未归巢不参与排行 · 同日同地点仅一条有效成绩 ·
+        健康异常与三代近亲禁止配对
+      </footer>
+    </div>
   );
 }
 
